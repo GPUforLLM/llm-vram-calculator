@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What LLMs Can I Run? - GPU Calculator</title>
+    <meta name="description" content="Discover which LLMs your GPU can run locally. Updated for Llama 4, DeepSeek, and Qwen 2.5.">
+    <link rel="icon" href="logo.png" type="image/png">
+    <style>
+        /* --- DESIGN SYSTEM --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; display: flex; justify-content: center; min-height: 100vh; }
+        .container { background: white; border-radius: 20px; max-width: 900px; width: 100%; padding: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+        
+        /* Header */
+        .header-container { text-align: center; margin-bottom: 30px; }
+        .site-logo { height: 150px; width: auto; margin-bottom: 10px; }
+        h1 { color: #2d3748; margin: 0; font-size: 2rem; }
+        .subtitle { color: #718096; margin-top: 5px; font-size: 1.1em; }
+        
+        .nav-btn { display: inline-block; margin-bottom: 20px; color: #667eea; text-decoration: none; font-weight: 600; font-size: 0.95em; transition: 0.2s; }
+        .nav-btn:hover { color: #5a67d8; transform: translateX(-3px); }
+        
+        /* Inputs Grid */
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #edf2f7; }
+        .input-box label { display: block; font-weight: 700; margin-bottom: 8px; color: #4a5568; font-size: 0.9em; text-transform: uppercase; letter-spacing: 0.5px; }
+        select, input { width: 100%; padding: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 1em; background: white; cursor: pointer; transition: 0.2s; }
+        select:focus, input:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+        .custom-input { margin-top: 10px; display: none; } 
+
+        .calculate-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 1.1em; font-weight: 600; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .calculate-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); }
+
+        /* Filters */
+        .filter-container { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; justify-content: center; display: none; }
+        .filter-btn { padding: 8px 16px; border-radius: 20px; border: 1px solid #e2e8f0; background: white; color: #4a5568; cursor: pointer; font-weight: 600; font-size: 0.9em; transition: all 0.2s; }
+        .filter-btn:hover { background: #f7fafc; border-color: #cbd5e0; }
+        .filter-btn.active { background: #667eea; color: white; border-color: #667eea; }
+
+        /* Results */
+        .results { display: none; margin-top: 20px; animation: fadeIn 0.5s ease; }
+        .results-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
+        .results-header h2 { margin-bottom: 5px; font-size: 1.6em; }
+        .results-header p { opacity: 0.9; font-size: 1em; margin: 0; }
+
+        .model-section { margin-bottom: 30px; }
+        .section-title { font-size: 1.4em; font-weight: 700; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 3px solid #e2e8f0; }
+        .section-title.green { color: #48bb78; border-bottom-color: #48bb78; }
+        .section-title.yellow { color: #d69e2e; border-bottom-color: #d69e2e; }
+        .section-title.orange { color: #ed8936; border-bottom-color: #ed8936; }
+        .section-title.red { color: #f56565; border-bottom-color: #f56565; }
+        
+        .model-card { background: #f7fafc; padding: 15px 20px; border-radius: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #e2e8f0; transition: all 0.2s ease; }
+        .model-card:hover { transform: translateX(3px); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        
+        .model-card.green { border-left-color: #48bb78; background: #f0fff4; }
+        .model-card.yellow { border-left-color: #d69e2e; background: #fffaf0; }
+        .model-card.orange { border-left-color: #ed8936; background: #fffaf0; }
+        .model-card.red { border-left-color: #f56565; background: #fff5f5; }
+        
+        .model-info { flex: 1; padding-right: 15px; }
+        .model-info h4 { color: #2d3748; margin-bottom: 4px; font-size: 1.15em; font-weight: 700; }
+        .model-info p { color: #718096; font-size: 0.9em; line-height: 1.4; margin-bottom: 5px; }
+        
+        .model-vram { text-align: right; min-width: 110px; }
+        .vram-value { font-size: 1.3em; font-weight: 700; color: #2d3748; }
+        .vram-label { font-size: 0.8em; color: #a0aec0; text-transform: uppercase; }
+
+        /* Smart Tip */
+        .context-suggestion { display: inline-block; background: #fffff0; color: #b7791f; border: 1px solid #d69e2e; padding: 4px 10px; border-radius: 6px; font-size: 0.85em; font-weight: 600; margin-top: 5px; }
+        
+        .back-link { display: inline-block; margin-top: 30px; padding: 12px 24px; background: white; color: #667eea; text-decoration: none; border-radius: 8px; font-weight: 600; border: 2px solid #667eea; transition: all 0.3s ease; }
+        .back-link:hover { background: #667eea; color: white; }
+
+        .empty-message { text-align: center; padding: 20px; color: #a0aec0; }
+
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 700px) { 
+            .container { padding: 20px 15px; width: 95%; } 
+            .controls-grid { grid-template-columns: 1fr; } 
+            .model-card { flex-direction: column; align-items: flex-start; gap: 10px; } 
+            .model-vram { text-align: left; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="nav-btn">← Back to Main Calculator</a>
+        
+        <div class="header-container">
+            <img src="logo.png" alt="Logo" class="site-logo">
+            <h1>What LLMs Can I Run?</h1>
+            <p class="subtitle">Find which models fit your hardware</p>
+        </div>
+
+        <div class="controls-grid">
+            <div class="input-box">
+                <label>Select GPU</label>
+                <select id="gpuSelect">
+                    <option value="">-- Choose --</option>
+                    </select>
+                <div id="customGpuInput" class="custom-input">
+                    <input type="number" id="customVram" placeholder="VRAM (GB)">
+                </div>
+            </div>
+            
+            <div class="input-box">
+                <label>Context Window</label>
+                <select id="ctxSelect">
+                    <option value="4096">4096 (Minimal)</option>
+                    <option value="8192" selected>8192 (Standard)</option>
+                    <option value="16384">16384 (16k)</option>
+                    <option value="32768">32768 (32k)</option>
+                    <option value="65536">65536 (64k)</option>
+                    <option value="131072">131072 (128k)</option>
+                </select>
+            </div>
+            
+            <div class="input-box">
+                <label>Quantization</label>
+                <select id="bpwSelect">
+                    <option value="3.30">3-bit (Max Speed)</option>
+                    <option value="4.85" selected>4-bit (Recommended)</option>
+                    <option value="5.69">5-bit (High Quality)</option>
+                    <option value="6.59">6-bit</option>
+                    <option value="8.50">8-bit (Near Lossless)</option>
+                    <option value="16.0">16-bit (FP16 - Raw)</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="calculate-btn" onclick="calculate()">Show Compatible Models</button>
+
+        <div id="filters" class="filter-container">
+            <button class="filter-btn active" onclick="filterModels('all')">All</button>
+            <button class="filter-btn" onclick="filterModels('Llama')">Llama</button>
+            <button class="filter-btn" onclick="filterModels('Gemma')">Gemma 3</button>
+            <button class="filter-btn" onclick="filterModels('DeepSeek')">DeepSeek</button>
+            <button class="filter-btn" onclick="filterModels('Qwen')">Qwen</button>
+            <button class="filter-btn" onclick="filterModels('Mistral')">Mistral</button>
+            <button class="filter-btn" onclick="filterModels('Other')">Other</button>
+        </div>
+
+        <div id="results" class="results"></div>
+
+        <div style="text-align: center;">
+            <a href="index.html" class="back-link">← Back to Calculator</a>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. DATA: VERIFIED SPECS (Nov 2025) ---
+        const models = [
+            // Gemma 3 Family
+            { name: "Gemma 3 27B", family: "Gemma", params: 27.2, layers: 62, hidden: 5376, heads: 32, kv: 16, desc: "Google's multimodal flagship." },
+            { name: "Gemma 3 12B", family: "Gemma", params: 12.2, layers: 48, hidden: 3840, heads: 16, kv: 8, desc: "Highly efficient multimodal." },
+            { name: "Gemma 3 4B", family: "Gemma", params: 4.2, layers: 34, hidden: 2560, heads: 10, kv: 10, desc: "Fast consumer multimodal." },
+            { name: "Gemma 3 1B", family: "Gemma", params: 1.2, layers: 26, hidden: 1152, heads: 4, kv: 1, desc: "Tiny but capable." },
+
+            // Llama
+            { name: "Llama 4 Scout 17B", family: "Llama", params: 17.2, layers: 40, hidden: 5120, heads: 32, kv: 8, desc: "New multimodal standard." },
+            { name: "Llama 4 Maverick 70B", family: "Llama", params: 72.8, layers: 48, hidden: 5120, heads: 40, kv: 8, desc: "Powerful multimodal flagship." },
+            { name: "Llama 3.3 70B", family: "Llama", params: 70.6, layers: 80, hidden: 8192, heads: 64, kv: 8, desc: "Refined text powerhouse." },
+            { name: "Llama 3.1 8B", family: "Llama", params: 8.03, layers: 32, hidden: 4096, heads: 32, kv: 8, desc: "Fastest reliable model." },
+            { name: "Llama 3.1 405B", family: "Llama", params: 405.0, layers: 126, hidden: 16384, heads: 128, kv: 8, desc: "Enterprise grade giant." },
+            
+            // DeepSeek
+            { name: "DeepSeek V2 Lite 16B", family: "DeepSeek", params: 16.0, layers: 27, hidden: 2048, heads: 16, kv: 16, desc: "Great chat & code (MLA)." },
+            { name: "DeepSeek V2.5 236B", family: "DeepSeek", params: 236.0, layers: 60, hidden: 5120, heads: 128, kv: 128, desc: "Massive MoE architecture." },
+            { name: "DeepSeek R1 Distill 14B", family: "DeepSeek", params: 14.7, layers: 48, hidden: 5120, heads: 40, kv: 40, desc: "R1 reasoning (Qwen based). Heavy context!" },
+            
+            // Qwen
+            { name: "Qwen 2.5 Coder 32B", family: "Qwen", params: 32.5, layers: 64, hidden: 5120, heads: 40, kv: 8, desc: "Best coding model." },
+            { name: "Qwen 2.5 72B", family: "Qwen", params: 72.7, layers: 80, hidden: 8192, heads: 64, kv: 8, desc: "General purpose giant." },
+            { name: "Qwen 2.5 VL 72B", family: "Qwen", params: 73.5, layers: 80, hidden: 8192, heads: 64, kv: 8, desc: "Visual-Language model." },
+
+            // Mistral
+            { name: "Mistral Nemo 12B", family: "Mistral", params: 12.2, layers: 40, hidden: 5120, heads: 32, kv: 8, desc: "Efficient mid-range choice." },
+            { name: "Mistral Small 22B", family: "Mistral", params: 22.2, layers: 56, hidden: 6144, heads: 32, kv: 8, desc: "Balanced performance." },
+            { name: "Mistral Large 123B", family: "Mistral", params: 123.0, layers: 88, hidden: 12288, heads: 96, kv: 8, desc: "Mistral's smartest." },
+
+            // Others
+            { name: "Phi-4 Mini 3.8B", family: "Other", params: 3.82, layers: 32, hidden: 3072, heads: 32, kv: 32, desc: "Runs on laptops/phones." },
+            { name: "Phi-3.5 Medium 14B", family: "Other", params: 14.0, layers: 40, hidden: 5120, heads: 40, kv: 10, desc: "Microsoft's mid-range." }
+        ];
+
+        const gpus = [
+            { group: "NVIDIA GeForce 50-Series", name: "RTX 5090", vram: 32 },
+            { group: "NVIDIA GeForce", name: "RTX 4090", vram: 24 },
+            { group: "NVIDIA GeForce", name: "RTX 4080 Super", vram: 16 },
+            { group: "NVIDIA GeForce", name: "RTX 4070 Ti Super", vram: 16 },
+            { group: "NVIDIA GeForce", name: "RTX 4070", vram: 12 },
+            { group: "NVIDIA GeForce", name: "RTX 4060 Ti (16GB)", vram: 16 },
+            { group: "NVIDIA GeForce", name: "RTX 4060 Ti (8GB)", vram: 8 },
+            { group: "NVIDIA GeForce", name: "RTX 3090 / Ti", vram: 24 },
+            { group: "NVIDIA GeForce", name: "RTX 3060", vram: 12 },
+            { group: "NVIDIA GeForce", name: "GTX 1080 Ti", vram: 11 },
+            { group: "AMD Radeon", name: "RX 7900 XTX", vram: 24 },
+            { group: "AMD Radeon", name: "RX 7800 XT", vram: 16 },
+            { group: "Professional / Mac", name: "RTX 6000 Ada", vram: 48 },
+            { group: "Professional / Mac", name: "Mac M2/M3 Max", vram: 48 },
+            { group: "Other", name: "Custom GPU", vram: "custom" }
+        ];
+
+        // --- VARIABLES ---
+        let lastCalculatedResults = [];
+        let currentFilter = 'all';
+        let currentUserVram = 0;
+
+        function initializeDropdowns() {
+            const gpuSelect = document.getElementById('gpuSelect');
+            const groupedGPUs = {};
+            gpus.forEach(gpu => {
+                if (!groupedGPUs[gpu.group]) groupedGPUs[gpu.group] = [];
+                groupedGPUs[gpu.group].push(gpu);
+            });
+
+            Object.keys(groupedGPUs).forEach(groupName => {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = groupName;
+                groupedGPUs[groupName].forEach(gpu => {
+                    const option = document.createElement('option');
+                    option.value = gpu.vram;
+                    option.textContent = `${gpu.name}${gpu.vram !== 'custom' ? ' (' + gpu.vram + 'GB)' : ''}`;
+                    optgroup.appendChild(option);
+                });
+                gpuSelect.appendChild(optgroup);
+            });
+        }
+
+        const gpuSelect = document.getElementById('gpuSelect');
+        const customGpuInput = document.getElementById('customGpuInput');
+        const customVram = document.getElementById('customVram');
+
+        gpuSelect.addEventListener('change', function() {
+            this.value === 'custom' ? customGpuInput.style.display = 'block' : customGpuInput.style.display = 'none';
+            // Auto-calc on GPU change if results exist
+            if(lastCalculatedResults.length > 0) calculate();
+        });
+
+        // Auto-recalculate listeners (The "Claude Fix")
+        document.getElementById('ctxSelect').addEventListener('change', function() {
+            if (lastCalculatedResults.length > 0) calculate();
+        });
+        document.getElementById('bpwSelect').addEventListener('change', function() {
+            if (lastCalculatedResults.length > 0) calculate();
+        });
+
+        // --- CORE MATH LOGIC ---
+        function calculate() {
+            if (gpuSelect.value === 'custom') {
+                currentUserVram = parseFloat(customVram.value);
+                if (!currentUserVram || currentUserVram <= 0) return alert('Please enter valid VRAM.');
+            } else {
+                currentUserVram = parseFloat(gpuSelect.value);
+                if (!currentUserVram) return alert('Please select a GPU.');
+            }
+
+            // READ VALUE DIRECTLY (FIXED)
+            const seq_len = parseInt(document.getElementById('ctxSelect').value);
+            const bitsPerWeight = parseFloat(document.getElementById('bpwSelect').value);
+            const overheadGB = 0.90;
+
+            document.getElementById('filters').style.display = 'flex';
+
+            lastCalculatedResults = models.map(model => {
+                // 1. Weights
+                const modelWeightsGB = (model.params * bitsPerWeight) / 8;
+
+                // 2. KV Cache (GQA)
+                const gqa_ratio = model.kv / model.heads;
+                const bytes_per_token_GB = (2 * model.layers * model.hidden * gqa_ratio * 2) / 1_073_741_824;
+                const kvGB = bytes_per_token_GB * seq_len;
+
+                // 3. Total
+                const totalRequiredVRAM = modelWeightsGB + kvGB + overheadGB;
+                const deficit = totalRequiredVRAM - currentUserVram;
+
+                // 4. Categorize
+                let category, categoryLabel;
+                const remainingVRAM = currentUserVram - modelWeightsGB - overheadGB;
+                let maxSafeContext = 0;
+                if (remainingVRAM > 0) {
+                    maxSafeContext = Math.floor(remainingVRAM / bytes_per_token_GB);
+                }
+                
+                const isSalvageable = (deficit > 0) && (maxSafeContext >= 2048);
+
+                if (deficit <= 0) {
+                    category = 'green';
+                    categoryLabel = 'Runs Perfectly';
+                } else if (isSalvageable || deficit <= 2.0) {
+                    category = 'yellow';
+                    categoryLabel = 'Optimization Possible';
+                } else if (deficit <= (currentUserVram * 0.5)) { 
+                    category = 'orange';
+                    categoryLabel = 'Runs Slow (System RAM Offload)';
+                } else {
+                    category = 'red';
+                    categoryLabel = 'Too Large for Hardware';
+                }
+
+                return {
+                    ...model,
+                    vramRequired: totalRequiredVRAM,
+                    deficit: Math.max(0, deficit),
+                    category: category,
+                    categoryLabel: categoryLabel,
+                    maxSafeContext: maxSafeContext
+                };
+            });
+
+            applyFilterAndDisplay();
+        }
+
+        function filterModels(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.textContent.includes(filter) || (filter === 'all' && btn.textContent === 'All')) {
+                    btn.classList.add('active');
+                }
+            });
+            applyFilterAndDisplay();
+        }
+
+        function applyFilterAndDisplay() {
+            let filtered = lastCalculatedResults;
+            if (currentFilter !== 'all') {
+                filtered = lastCalculatedResults.filter(m => m.family.includes(currentFilter));
+            }
+
+            const categoryOrder = { 'green': 0, 'yellow': 1, 'orange': 2, 'red': 3 };
+            filtered.sort((a, b) => {
+                if (categoryOrder[a.category] !== categoryOrder[b.category]) {
+                    return categoryOrder[a.category] - categoryOrder[b.category];
+                }
+                return b.params - a.params; 
+            });
+
+            displayResults(filtered, currentUserVram);
+        }
+
+        function displayResults(modelResults, userVram) {
+            const results = document.getElementById('results');
+            results.style.display = 'block';
+
+            const contextSelect = document.getElementById('ctxSelect');
+            const contextText = contextSelect.options[contextSelect.selectedIndex].text.split('(')[0].trim();
+            const bitsText = document.getElementById('bpwSelect').options[document.getElementById('bpwSelect').selectedIndex].text.split('(')[0].trim();
+
+            const greenModels = modelResults.filter(m => m.category === 'green');
+            const yellowModels = modelResults.filter(m => m.category === 'yellow');
+            const orangeModels = modelResults.filter(m => m.category === 'orange');
+            const redModels = modelResults.filter(m => m.category === 'red');
+
+            let html = `
+                <div class="results-header">
+                    <h2>🎯 Your GPU: ${userVram}GB VRAM</h2>
+                    <p>Context: ${contextText} | Quantization: ${bitsText}</p>
+                </div>
+            `;
+
+            function renderSection(models, emoji, title, cssClass) {
+                if (models.length === 0) return '';
+                
+                let sectionHtml = `<div class="model-section">`;
+                sectionHtml += `<h3 class="section-title ${cssClass}">${emoji} ${title} (${models.length})</h3>`;
+                
+                models.forEach(model => {
+                    let statusInfo = model.desc;
+                    let extraHtml = '';
+
+                    if (model.category === 'yellow') {
+                        const tiers = [32768, 16384, 8192, 4096, 2048];
+                        let recCtx = 2048;
+                        for(let t of tiers) if(model.maxSafeContext >= t) { recCtx = t; break; }
+                        
+                        extraHtml += `<div class="context-suggestion">💡 FIT IT: Reduce Context to <strong>${recCtx}</strong> (Max: ${model.maxSafeContext})</div>`;
+                    }
+                    
+                    if (model.category === 'orange') {
+                         statusInfo += ` • Offload to RAM: ~${(model.deficit * 1.1).toFixed(1)}GB`;
+                    }
+                    
+                    if (model.category === 'red') {
+                        statusInfo += ` • Missing ${model.deficit.toFixed(1)} GB`;
+                    }
+
+                    sectionHtml += `
+                        <div class="model-card ${model.category}">
+                            <div class="model-info">
+                                <h4>${model.name}</h4>
+                                <p>${statusInfo} • ${model.params}B params</p>
+                                ${extraHtml}
+                            </div>
+                            <div class="model-vram">
+                                <div class="vram-value">${model.vramRequired.toFixed(1)} GB</div>
+                                <div class="vram-label">REQUIRED</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                sectionHtml += `</div>`;
+                return sectionHtml;
+            }
+
+            html += renderSection(greenModels, '✅', 'Runs Perfectly', 'green');
+            html += renderSection(yellowModels, '⚠️', 'Tight / Needs Optimization', 'yellow');
+            html += renderSection(orangeModels, '🟠', 'Runs Slow (System RAM Offload)', 'orange');
+            html += renderSection(redModels, '❌', 'Too Large for Hardware', 'red');
+
+            if (modelResults.length === 0) html += `<div class="empty-message">No models found for this filter.</div>`;
+
+            results.innerHTML = html;
+            results.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        initializeDropdowns();
+    </script>
+</body>
+</html>

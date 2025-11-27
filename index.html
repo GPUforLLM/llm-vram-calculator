@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>Local LLM Readiness Calculator - Can I Run Llama 4, DeepSeek & Mistral?</title>
+    
+    <meta name="description" content="Accurate VRAM calculator for local AI. Check if your GPU can run Llama 4, DeepSeek V3, and other GGUF models without crashing.">
+    
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://gpuforllm.com/">
+    <meta property="og:title" content="Local LLM Readiness Calculator">
+    <meta property="og:description" content="Can your PC run Llama 4? Free tool to calculate VRAM requirements for local AI models (GGUF). Supports NVIDIA & AMD.">
+    <meta property="og:image" content="https://gpuforllm.com/social-preview.png">
+
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://gpuforllm.com/">
+    <meta property="twitter:title" content="Local LLM Readiness Calculator">
+    <meta property="twitter:description" content="Check if your GPU can run Llama 4 locally. Accurate VRAM calculator for GGUF models.">
+    <meta property="twitter:image" content="https://gpuforllm.com/social-preview.png">
+    
+    <link rel="icon" href="logo.png" type="image/png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+        .header-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .site-logo {
+            height: 150px;
+            width: auto;
+            margin: 0 auto 10px auto;
+            display: block;
+        }
+        h1 { text-align: center; width: 100%; margin: 0; line-height: 1.2; color: #2d3748; }
+        .subtitle {
+            text-align: center; display: block; width: 100%; color: #718096;
+            margin-top: 5px; margin-bottom: 20px; font-size: 1.1em;
+        }
+
+        /* --- THE NEW DISCOVERY BUTTON STYLES --- */
+        .discovery-promo {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-top: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            max-width: 500px;
+        }
+        .promo-text { font-size: 0.95em; color: #0369a1; font-weight: 500; }
+        .discovery-btn {
+            text-decoration: none;
+            background: #0284c7;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 5px rgba(2, 132, 199, 0.2);
+        }
+        .discovery-btn:hover {
+            background: #0369a1;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(2, 132, 199, 0.3);
+        }
+        /* --------------------------------------- */
+
+        .input-section { margin-bottom: 25px; }
+        label { display: block; color: #4a5568; font-weight: 600; margin-bottom: 8px; font-size: 0.95em; }
+        select, input[type="number"] {
+            width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0;
+            border-radius: 8px; font-size: 1em; transition: all 0.3s ease; background: white;
+        }
+        select:focus, input[type="number"]:focus {
+            outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .custom-input { display: none; margin-top: 15px; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .calculate-btn {
+            width: 100%; padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; border-radius: 10px; font-size: 1.1em; font-weight: 600;
+            cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; margin-top: 20px;
+        }
+        .calculate-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4); }
+        .calculate-btn:active { transform: translateY(0); }
+        .results { display: none; margin-top: 30px; padding: 30px; border-radius: 12px; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .results.success { background: linear-gradient(135deg, #48bb78 0%, #38a169 100%); color: white; }
+        .results.warning { background: linear-gradient(135deg, #d69e2e 0%, #b7791f 100%); color: white; }
+        .results.failure { background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%); color: white; }
+        .results h2 { margin-bottom: 20px; font-size: 1.8em; }
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat { background: rgba(255, 255, 255, 0.2); padding: 15px; border-radius: 8px; backdrop-filter: blur(10px); }
+        .stat-label { font-size: 0.85em; opacity: 0.9; margin-bottom: 5px; }
+        .stat-value { font-size: 1.5em; font-weight: 700; }
+        .recommendation { background: rgba(255, 255, 255, 0.95); color: #2d3748; padding: 20px; border-radius: 10px; margin-top: 20px; }
+        .recommendation h3 { color: #e53e3e; margin-bottom: 15px; font-size: 1.3em; }
+        .gpu-card { background: #f7fafc; padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #667eea; }
+        .gpu-card h4 { color: #2d3748; margin-bottom: 8px; }
+        .gpu-card p { color: #4a5568; font-size: 0.9em; margin-bottom: 10px; }
+        .affiliate-link { display: inline-block; background: #FFD814; color: rgb(0, 0, 0); padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 600; transition: background 0.3s ease; }
+        .affiliate-link:hover { background: #F7CA00; }
+        .formula-box { background: #f7fafc; padding: 15px; border-radius: 8px; margin-top: 15px; font-family: 'Courier New', monospace; font-size: 0.9em; color: #4a5568; border-left: 4px solid #667eea; }
+        
+        /* --- Accordion / FAQ Styles --- */
+        .accordion-item { border-bottom: 1px solid #e2e8f0; margin-bottom: 10px; }
+        .accordion-header {
+            width: 100%; padding: 15px 0; text-align: left; background: none; border: none; outline: none;
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            font-size: 1.1em; font-weight: 600; color: #2d3748; transition: color 0.3s ease;
+        }
+        .accordion-header:hover { color: #667eea; }
+        .accordion-header::after { content: '+'; font-size: 1.2em; color: #667eea; transition: transform 0.3s ease; }
+        .accordion-header.active::after { transform: rotate(45deg); }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; }
+        .accordion-body { padding-bottom: 20px; color: #4a5568; line-height: 1.6; }
+        .accordion-body ul { margin-left: 20px; margin-top: 10px; }
+        .accordion-body li { margin-bottom: 5px; }
+        .content-title { font-size: 1.5em; margin-bottom: 20px; color: #2d3748; text-align: center; }
+
+        @media (max-width: 768px) {
+            .container { padding: 20px 12px !important; width: 95%; }
+            .site-logo { height: 120px !important; margin-bottom: 10px; }
+            h1 { font-size: 1.3rem !important; line-height: 1.2; letter-spacing: -0.5px; padding: 0; }
+            .header-container { margin-bottom: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-container">
+            <img src="logo.png" alt="LLM Calc Logo" class="site-logo">
+            <h1>Local LLM Readiness Calculator</h1>
+            <p class="subtitle">Calculate if your GPU can run Large Language Models locally (Inference Only)</p>
+            
+            <div class="discovery-promo">
+                <span class="promo-text">Not sure which model to pick?</span>
+                <a href="what-llms-can-i-run.html" class="discovery-btn">
+                     Find which models fit your GPU
+                </a>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <label for="modelSelect">Select LLM Model</label>
+            <select id="modelSelect">
+                <option value="">-- Choose a Model --</option>
+                
+                <optgroup label="Meta Llama 4 (Multimodal)">
+                    <option value="llama-4-scout">Llama 4 Scout (17B + Vision)</option>
+                    <option value="llama-4-70b">Llama 4 Maverick (70B)</option>
+                </optgroup>
+
+                <optgroup label="Meta Llama 3.3 / 3.1">
+                    <option value="llama-3.3-70b">Llama 3.3 70B</option>
+                    <option value="llama-3.1-8b">Llama 3.1 8B</option>
+                    <option value="llama-3.1-70b">Llama 3.1 70B</option>
+                    <option value="llama-3.1-405b">Llama 3.1 405B (Massive)</option>
+                    <option value="nemotron-70b">NVIDIA Nemotron 70B</option>
+                </optgroup>
+
+                <optgroup label="DeepSeek (V2 / V2.5)">
+                    <option value="deepseek-v2-lite">DeepSeek V2 Lite (16B Chat)</option>
+                    <option value="deepseek-coder-v2">DeepSeek Coder V2 (16B)</option>
+                    <option value="deepseek-r1-14b">DeepSeek R1 Distill (14B)</option>
+                    <option value="deepseek-v2.5">DeepSeek V2.5 (236B - Massive)</option>
+                </optgroup>
+
+                <optgroup label="Qwen 2.5 (Alibaba)">
+                    <option value="qwen-2.5-coder-32b">Qwen 2.5 Coder 32B (Programming)</option>
+                    <option value="qwen-2.5-72b">Qwen 2.5 72B (General / Instruct)</option>
+                    <option value="qwen-2.5-vl-72b">Qwen 2.5 VL 72B (Multimodal)</option>
+                </optgroup>
+
+                <optgroup label="Mistral AI">
+                    <option value="mistral-nemo">Mistral Nemo 12B</option>
+                    <option value="mistral-small">Mistral Small 22B</option>
+                    <option value="mistral-large">Mistral Large (123B)</option>
+                </optgroup>
+
+                <optgroup label="Microsoft Phi">
+                    <option value="phi-4-mini">Phi-4 Mini (3.8B)</option>
+                    <option value="phi-3.5-medium">Phi-3.5 Medium (14B)</option>
+                </optgroup>
+
+                <optgroup label="Google Gemma">
+                    <option value="gemma-3-27b">Gemma 3 27B (New!)</option>
+                    <option value="gemma-3-12b">Gemma 3 12B</option>
+                    <option value="gemma-3-4b">Gemma 3 4B</option>
+                    <option value="gemma-2-9b">Gemma 2 9B (Legacy)</option>
+                </optgroup>
+
+                <option value="custom">Other / Custom Model Size</option>
+            </select>
+            <div id="customModelInput" class="custom-input">
+                <label for="customParams">Enter Parameter Count (in Billions)</label>
+                <input type="number" id="customParams" placeholder="e.g., 14 for a 14B model" min="0.1" step="0.1">
+            </div>
+        </div>
+
+        <div class="input-section">
+            <label for="bitsSelect">Quantization (Bits Per Weight)</label>
+            <select id="bitsSelect">
+                <option value="4.85">4-bit (GGUF Q4_K_M - Recommended)</option>
+                <option value="5.69">5-bit (GGUF Q5_K_M)</option>
+                <option value="6.59">6-bit (GGUF Q6_K)</option>
+                <option value="8.50">8-bit (GGUF Q8_0 - High Quality)</option>
+                <option value="3.30">3-bit (GGUF Q3_K_M - Max Compression)</option>
+                <option value="16.0">16-bit (FP16 - Uncompressed)</option>
+            </select>
+        </div>
+
+        <div class="input-section">
+            <label for="contextSelect">Context Window Length (Tokens)</label>
+            <select id="contextSelect">
+                <option value="1.10">4096 (Low VRAM / Old Standard)</option>
+                <option value="1.20" selected>8192 (Standard - 8k)</option>
+                <option value="1.25">16384 (Long - 16k)</option>
+                <option value="1.30">32768 (Very Long - 32k)</option>
+                <option value="1.40">65536 (Ultra - 64k)</option>
+                <option value="1.50">131072 (Extreme - 128k)</option>
+            </select>
+            <p style="font-size: 0.8em; color: #a0aec0; margin-top: 5px;">* Affects KV Cache size in VRAM</p>
+        </div>
+
+        <div class="input-section">
+            <label for="gpuSelect">Select Your GPU</label>
+            <select id="gpuSelect">
+                <option value="">-- Choose Your GPU --</option>
+                <optgroup label="NVIDIA GeForce 50-Series">
+                    <option value="32">RTX 5090 (32GB)</option>
+                </optgroup>
+                <optgroup label="NVIDIA GeForce">
+                    <option value="24">RTX 4090 (24GB)</option>
+                    <option value="16">RTX 4080 Super (16GB)</option>
+                    <option value="16">RTX 4070 Ti Super (16GB)</option>
+                    <option value="12">RTX 4070 (12GB)</option>
+                    <option value="16">RTX 4060 Ti (16GB)</option>
+                    <option value="8">RTX 4060 Ti (8GB)</option>
+                    <option value="24">RTX 3090 / Ti (24GB)</option>
+                    <option value="12">RTX 3060 (12GB)</option>
+                    <option value="11">GTX 1080 Ti (11GB)</option>
+                </optgroup>
+                <optgroup label="AMD Radeon">
+                    <option value="24">RX 7900 XTX (24GB)</option>
+                    <option value="20">RX 7900 XT (20GB)</option>
+                    <option value="16">RX 7800 XT (16GB)</option>
+                    <option value="16">RX 6800 XT (16GB)</option>
+                </optgroup>
+                <optgroup label="Professional / Mac">
+                    <option value="48">RTX 6000 Ada (48GB)</option>
+                    <option value="48">Mac M2/M3 Max (48GB Shared)</option>
+                    <option value="96">Mac M2/M3 Ultra (96GB Shared)</option>
+                </optgroup>
+                <option value="custom">Other / Custom GPU</option>
+            </select>
+            <div id="customGpuInput" class="custom-input">
+                <label for="customVram">Enter Your GPU VRAM (GB)</label>
+                <input type="number" id="customVram" placeholder="e.g., 16" min="1" step="1">
+            </div>
+        </div>
+
+        <button class="calculate-btn" onclick="calculate()">Calculate Readiness</button>
+
+        <div id="results" class="results"></div>
+
+        <div class="content-section" style="margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 30px;">
+            <h2 class="content-title">💡 Hardware Guide & FAQ</h2>
+            
+            <div class="accordion-item">
+                <button class="accordion-header">1. Why is VRAM so important?</button>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <p>Unlike gaming, where FPS matters, local AI relies heavily on <strong>Video RAM (VRAM)</strong>. The entire model weights must fit into the GPU memory for fast inference.</p>
+                        <p>If the model is larger than your VRAM, layers will offload to your system RAM (CPU), causing speeds to drop from 50 tokens/sec to 1-3 tokens/sec.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <button class="accordion-header">2. Understanding Quantization (GGUF)</button>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <p>Most local models use <strong>GGUF format</strong> with quantization to reduce size without losing much intelligence:</p>
+                        <ul>
+                            <li><strong>4-bit (Q4_K_M):</strong> The sweet spot. Retains 99% of performance while cutting memory usage by half.</li>
+                            <li><strong>8-bit (Q8_0):</strong> Higher precision, requires almost double the VRAM.</li>
+                            <li><strong>FP16 (16-bit):</strong> The raw model size. Usually requires enterprise-grade hardware for large models (70B+).</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <button class="accordion-header">3. Why does the calculator add a buffer?</button>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <p>You cannot fill your VRAM to 100% with just the model weights. We add a <strong>0.9 GB</strong> safety margin to account for:</p>
+                        <ol>
+                            <li><strong>KV Cache (Context):</strong> The "memory" of the conversation takes up space. Longer chats = more VRAM.</li>
+                            <li><strong>Display Overhead:</strong> Your monitor and OS use a chunk of VRAM (0.5GB - 1GB).</li>
+                        </ol>
+                        <p>This ensures your model won't crash mid-sentence.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <button class="accordion-header">4. VRAM Tiers: How much do you need?</button>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <p>Instead of chasing specific models, look for these VRAM targets based on your goals:</p>
+                        
+                        <div style="margin-bottom: 10px;">
+                            <strong>🟢 Entry Level (Target: 12GB)</strong>
+                            <p>Great for 7B-12B models. <em>(Classic examples: RTX 3060 / 4060 series)</em>.</p>
+                        </div>
+
+                        <div style="margin-bottom: 10px;">
+                            <strong>🟠 Mid Range (Target: 16GB)</strong>
+                            <p>The sweet spot. Allows larger quantizations or mid-sized models like Mistral Small / Llama 17B. <em>(Classic examples: RTX 4060 Ti 16GB / 4070 Ti Super)</em>.</p>
+                        </div>
+
+                        <div>
+                            <strong>🔴 High End (Target: 24GB)</strong>
+                            <p>The consumer ceiling. Required for 70B models (4-bit) and heavy workflows. <em>(Classic examples: RTX 3090 / 4090 series)</em>.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <button class="accordion-header">5. Can I use my System RAM (CPU) instead?</button>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <p>Yes, but it will be <strong>extremely slow</strong>. This is called "CPU Offloading".</p>
+                        <ul>
+                            <li><strong>GPU VRAM Bandwidth:</strong> ~500-1000 GB/s (Fast)</li>
+                            <li><strong>System RAM (DDR5):</strong> ~50-60 GB/s (Slow)</li>
+                        </ul>
+                        <p>If a model doesn't fit in your VRAM, generation speed can drop from 50 tokens/second to 1-3 tokens/second. It works for testing, but not for daily use.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <button class="accordion-header">6. NVIDIA vs AMD for Local AI</button>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <p><strong>NVIDIA (Recommended):</strong> Supported by almost all AI software out of the box via CUDA. It is the "plug and play" option.</p>
+                        <p><strong>AMD (Budget / Advanced):</strong> Often offers more VRAM per dollar (e.g., RX 6800 XT 16GB is cheaper than RTX 4060 Ti). However, setting up ROCm on Windows can be tricky. Best used with <strong>LM Studio</strong> or <strong>Ollama</strong> (Vulkan support).</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <button class="accordion-header">7. How do I run these models?</button>
+                <div class="accordion-content">
+                    <div class="accordion-body">
+                        <p>Once you have the hardware, the easiest way to start is:</p>
+                        <ol style="margin-left: 20px; color: #4a5568; margin-top: 10px;">
+                            <li>Download <strong>LM Studio</strong> or <strong>Ollama</strong> (Free software).</li>
+                            <li>Search for "GGUF" models inside the app.</li>
+                            <li>Select a model that fits your VRAM (use this calculator!).</li>
+                            <li>Chat locally without internet.</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+            <div class="legal-footer" style="margin-top: 40px; font-size: 0.9em; color: #718096; border-top: 1px solid #eee; padding-top: 20px;">
+                
+                <p style="margin-bottom: 15px;">
+                    <strong>Transparency Note:</strong> Some links on this site are affiliate links. This means that if you choose to make a purchase, we may earn a small commission <strong>at no extra cost to you</strong>. This support helps keep this tool free and updated.
+                </p>
+
+                <p style="font-size: 0.85em; opacity: 0.8;">
+                    GPUforLLM.com is a participant in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.com.
+                </p>
+                
+                <p style="margin-top: 10px;">
+                    Disclaimer: Estimations based on standard GGUF architectures. Actual usage may vary.
+                    <br>
+                    <a href="privacy.html" style="color: #718096; text-decoration: underline;">Privacy Policy</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // --- 1. DATA: PRECISE SPECS (Verified Nov 2025) ---
+    const MODEL_SPECS = {
+        // --- Llama 4 (Verified from Config JSONs) ---
+        "llama-4-scout":  { params: 17.2,  layers: 48, hidden: 5120,  heads: 40, kv_heads: 8  }, 
+        "llama-4-70b":    { params: 72.8,  layers: 48, hidden: 5120,  heads: 40, kv_heads: 8  }, 
+
+        // --- Llama 3.3 / 3.1 ---
+        "llama-3.3-70b":  { params: 70.6,  layers: 80, hidden: 8192,  heads: 64, kv_heads: 8  },
+        "llama-3.1-8b":   { params: 8.03,  layers: 32, hidden: 4096,  heads: 32, kv_heads: 8  },
+        "llama-3.1-70b":  { params: 70.6,  layers: 80, hidden: 8192,  heads: 64, kv_heads: 8  },
+        "llama-3.1-405b": { params: 405.0, layers: 126, hidden: 16384, heads: 128, kv_heads: 8 },
+        "nemotron-70b":   { params: 70.6,  layers: 80, hidden: 8192,  heads: 64, kv_heads: 8  },
+
+        // --- DeepSeek (Verified) ---
+        "deepseek-v2-lite": { params: 16.0, layers: 27, hidden: 2048, heads: 16, kv_heads: 16 },
+        "deepseek-coder-v2":{ params: 16.0, layers: 27, hidden: 2048, heads: 16, kv_heads: 16 },
+        "deepseek-v2.5":    { params: 236.0, layers: 60, hidden: 5120, heads: 128, kv_heads: 128 },
+        "deepseek-r1-14b":  { params: 14.7, layers: 48, hidden: 5120, heads: 40, kv_heads: 40 }, // No GQA!
+
+        // --- Mistral ---
+        "mistral-nemo":   { params: 12.2,  layers: 40, hidden: 5120,  heads: 32, kv_heads: 8  },
+        "mistral-small":  { params: 22.2,  layers: 56, hidden: 6144,  heads: 32, kv_heads: 8  },
+        "mistral-large":  { params: 123.0, layers: 88, hidden: 12288, heads: 96, kv_heads: 8  },
+
+        // --- Qwen 2.5 (Verified) ---
+        "qwen-2.5-coder-32b": { params: 32.5, layers: 64, hidden: 5120, heads: 40, kv_heads: 8 },
+        "qwen-2.5-72b":       { params: 72.7, layers: 80, hidden: 8192, heads: 64, kv_heads: 8 },
+        "qwen-2.5-vl-72b":    { params: 73.5, layers: 80, hidden: 8192, heads: 64, kv_heads: 8 },
+
+        // --- Microsoft Phi ---
+        "phi-4-mini":     { params: 3.82,  layers: 32, hidden: 3072,  heads: 32, kv_heads: 32 },
+        "phi-3.5-medium": { params: 14.0,  layers: 40, hidden: 5120,  heads: 40, kv_heads: 10 },
+
+        // --- Google Gemma 3 (Updated) ---
+        "gemma-3-27b":    { params: 27.2,  layers: 62, hidden: 5376,  heads: 32, kv_heads: 16 },
+        "gemma-3-12b":    { params: 12.2,  layers: 48, hidden: 3840,  heads: 16, kv_heads: 8  },
+        "gemma-3-4b":     { params: 4.2,   layers: 34, hidden: 2560,  heads: 10, kv_heads: 10 }, // No GQA assumed
+        
+        // --- Google Gemma 2 (Legacy Support) ---
+        "gemma-2-9b":     { params: 9.24,  layers: 42, hidden: 3584,  heads: 16, kv_heads: 8  },
+        "gemma-2-27b":    { params: 27.2,  layers: 46, hidden: 4608,  heads: 32, kv_heads: 16 }
+    };
+
+    // --- 2. UI HELPERS ---
+    const headers = document.querySelectorAll('.accordion-header');
+    headers.forEach(header => {
+        header.addEventListener('click', () => {
+            header.classList.toggle('active');
+            const content = header.nextElementSibling;
+            content.style.maxHeight = header.classList.contains('active') ? content.scrollHeight + "px" : 0;
+        });
+    });
+
+    const modelSelect = document.getElementById('modelSelect');
+    const customModelInput = document.getElementById('customModelInput');
+    const gpuSelect = document.getElementById('gpuSelect');
+    const customGpuInput = document.getElementById('customGpuInput');
+    const results = document.getElementById('results');
+
+    modelSelect.addEventListener('change', function() {
+        this.value === 'custom' ? customModelInput.style.display = 'block' : customModelInput.style.display = 'none';
+    });
+
+    gpuSelect.addEventListener('change', function() {
+        this.value === 'custom' ? customGpuInput.style.display = 'block' : customGpuInput.style.display = 'none';
+    });
+
+    // --- 3. THE CALCULATION ENGINE ---
+    function calculate() {
+        const modelKey = modelSelect.value;
+        const contextStr = document.getElementById('contextSelect').options[document.getElementById('contextSelect').selectedIndex].text;
+        const seq_len = parseInt(contextStr.match(/(\d+)/)[0]) || 2048; 
+        const rawBits = document.getElementById('bitsSelect').value;
+        const exact_bpw = parseFloat(rawBits); 
+
+        let spec;
+        if (modelKey === 'custom') {
+            const paramsInput = parseFloat(document.getElementById('customParams').value);
+            if (!paramsInput || paramsInput <= 0) return alert('Please enter valid parameters.');
+            spec = {
+                params: paramsInput,
+                layers: Math.ceil(paramsInput * 1.5), 
+                hidden: Math.ceil(Math.sqrt(paramsInput) * 1024),
+                heads: 32,
+                kv_heads: 32 
+            };
+        } else {
+            if (!modelKey) return alert('Please select a model.');
+            spec = MODEL_SPECS[modelKey];
+            if (!spec) return alert('Error: Model specs not found in DB.');
+        }
+
+        let userVram;
+        if (gpuSelect.value === 'custom') {
+            userVram = parseFloat(document.getElementById('customVram').value);
+            if (!userVram || userVram <= 0) return alert('Please enter valid VRAM.');
+        } else {
+            userVram = parseFloat(gpuSelect.value);
+            if (!userVram) return alert('Please select a GPU.');
+        }
+
+        // --- MATH ---
+        const modelWeightsGB = (spec.params * exact_bpw) / 8;
+        
+        const gqa_ratio = spec.kv_heads / spec.heads;
+        const bytes_per_token_GB = (2 * spec.layers * spec.hidden * gqa_ratio * 2) / 1_073_741_824;
+        const kvGB = bytes_per_token_GB * seq_len;
+        const overheadGB = 0.90;
+        const totalRequiredVRAM = modelWeightsGB + kvGB + overheadGB;
+
+        // --- SMART CALCULATION ---
+        const remainingVRAM = userVram - modelWeightsGB - overheadGB;
+        let maxSafeContext = 0;
+        if (remainingVRAM > 0) {
+            maxSafeContext = Math.floor(remainingVRAM / bytes_per_token_GB);
+        }
+
+        // --- SALVAGE LOGIC ---
+        const isReady = totalRequiredVRAM <= userVram;
+        const deficit = isReady ? 0 : totalRequiredVRAM - userVram;
+        const isSalvageable = !isReady && maxSafeContext >= 2048;
+
+        let statusMode = 'red';
+        if (isReady) statusMode = 'green';
+        else if (isSalvageable || deficit <= 2.0) statusMode = 'yellow';
+
+        displayResults(statusMode, modelWeightsGB, kvGB, overheadGB, totalRequiredVRAM, userVram, deficit, spec.params, exact_bpw, seq_len, maxSafeContext);
+    }
+
+    function displayResults(statusMode, weightsGB, kvGB, overheadGB, totalGB, userVram, deficit, params, bits, seq_len, maxSafeContext) {
+        results.style.display = 'block';
+        
+        let headline = '';
+        if (statusMode === 'green') {
+            results.className = 'results success';
+            headline = '✅ Ready to Run!';
+        } else if (statusMode === 'yellow') {
+            results.className = 'results warning';
+            headline = '⚠️ Optimization Recommended';
+        } else {
+            results.className = 'results failure';
+            headline = '❌ Insufficient VRAM';
+        }
+
+        const modelName = modelSelect.value === 'custom' ? `Custom ${params}B` : modelSelect.options[modelSelect.selectedIndex].text.trim();
+        const gpuName = gpuSelect.value === 'custom' ? `Custom ${userVram}GB` : gpuSelect.options[gpuSelect.selectedIndex].text.trim();
+        const shareText = `Trying to run ${modelName} @ ${seq_len} ctx.\nHardware: ${gpuName}\nReq: ${totalGB.toFixed(2)} GB\nResult: ${headline}`;
+
+        let html = `
+            <h2>${headline}</h2>
+            <div class="stat-grid">
+                <div class="stat">
+                    <div class="stat-label">Model Weights</div>
+                    <div class="stat-value">${weightsGB.toFixed(2)} GB</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">KV Cache (${seq_len})</div>
+                    <div class="stat-value">${kvGB.toFixed(2)} GB</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Buffer & Overhead</div>
+                    <div class="stat-value">${overheadGB.toFixed(2)} GB</div>
+                </div>
+                <div class="stat" style="border: 2px solid #a0aec0;">
+                    <div class="stat-label">Total Required</div>
+                    <div class="stat-value">${totalGB.toFixed(2)} GB</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Your VRAM</div>
+                    <div class="stat-value">${userVram.toFixed(2)} GB</div>
+                </div>
+                ${statusMode !== 'green' ? `
+                <div class="stat" style="background: rgba(0,0,0,0.1);">
+                    <div class="stat-label">RAM Offload (Slow)</div>
+                    <div class="stat-value">${(deficit * 1.1).toFixed(1)} GB</div>
+                </div>
+                ` : ''}
+            </div>
+            
+            <button class="share-btn" onclick="navigator.clipboard.writeText(\`${shareText}\`); alert('Result copied!');" style="margin-top: 10px; width: 100%; background: rgba(0,0,0,0.05); border: 1px solid #ccc; color: #4a5568; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                📋 Copy Result for Reddit
+            </button>
+
+            <div class="formula-box">
+                <strong>Precise Calculation (Nov 2025):</strong><br>
+                Weights: (${params}B × ${bits} bpw) ÷ 8 = ${weightsGB.toFixed(2)} GB<br>
+                KV Cache: Uses GQA (Grouped Query Attention) formula.<br>
+                Overhead: ~0.9GB system buffer included.
+            </div>
+        `;
+
+        // --- RECOMMENDATION LOGIC ---
+        if (statusMode === 'yellow') {
+            const standardTiers = [32768, 16384, 8192, 4096, 2048];
+            let recommendedCtx = 2048;
+            for (let tier of standardTiers) {
+                if (maxSafeContext >= tier) {
+                    recommendedCtx = tier;
+                    break; 
+                }
+            }
+
+            let tipText = "";
+            let tipTitle = "";
+            
+            if (bits > 5.0) {
+                tipTitle = "Switch to 4-bit (Q4_K_M) quantization.";
+                tipText = "4-bit is the industry standard. It saves huge VRAM with minimal quality loss.";
+            } else {
+                tipTitle = `Reduce Context to ${recommendedCtx}.`;
+                tipText = `Your GPU can handle around <strong>${maxSafeContext}</strong> tokens. Setting it to <strong>${recommendedCtx}</strong> will make it run fast without spending money.`;
+            }
+
+            html += `
+                <div class="recommendation" style="border-left: 4px solid #d69e2e;">
+                    <h3>💡 You can make it fit!</h3>
+                    <p>You are missing <strong>${deficit.toFixed(2)} GB</strong>, but you don't necessarily need a new GPU.</p>
+                    <p><strong>${tipTitle}</strong><br>${tipText}</p>
+                </div>
+            `;
+        } 
+        
+        if (statusMode === 'red') {
+            html += getRecommendation(deficit, totalGB, userVram, gpuName);
+        }
+
+        results.innerHTML = html;
+        results.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // --- 4. HARDWARE RECOMMENDATION ---
+    function getRecommendation(deficit, totalRequiredVRAM, userVram, gpuName) {
+        let recommendation = `
+            <div class="recommendation">
+                <h3>💡 Upgrade Recommendations</h3>
+                <p>Even with optimization, this model is too large for your hardware.</p>
+                <p>You need <strong>${totalRequiredVRAM.toFixed(2)} GB</strong> total VRAM. Missing: ${deficit.toFixed(2)} GB.</p>
+        `;
+
+        const getCloudOptions = () => {
+            return `
+                <div class="gpu-card" style="border-left: 4px solid #3182ce;">
+                    <h4>☁️ Recommended Cloud Options</h4>
+                    <p>Run large models without buying hardware:</p>
+                    <div style="margin-top: 10px; margin-bottom: 10px;">
+                        <a href="https://www.vultr.com/?ref=9831695" target="_blank" class="affiliate-link" style="background: #007bff; font-size: 0.9em; padding: 8px 15px;">→ Check Vultr</a>
+                    </div>
+                    <div style="border-top: 1px solid #e2e8f0; padding-top: 10px;">
+                        <a href="https://runpod.io?ref=u23owpyq" target="_blank" class="affiliate-link" style="background: #7442d4; font-size: 0.9em; padding: 8px 15px; margin-top: 5px;">→ Rent GPU (RunPod)</a>
+                    </div>
+                </div>
+            `;
+        };
+
+        if (totalRequiredVRAM > 48) {
+             recommendation += `
+                <div class="gpu-card" style="border-left: 4px solid #f56565; padding: 15px;">
+                    <h4>🚨 Multi-GPU Required</h4>
+                    <p>No single consumer GPU can run this (${totalRequiredVRAM.toFixed(2)} GB). You need a server or cloud.</p>
+                </div>
+                ${getCloudOptions()}
+            `;
+        }
+        else if (totalRequiredVRAM > 32) {
+            recommendation += `
+                <div class="gpu-card" style="border-left: 4px solid #e53e3e;">
+                    <h4>Recommended: RTX 6000 Ada (48GB)</h4>
+                    <p>🚀 <strong>Target Met:</strong> Your ${gpuName} is NOT enough. You need a pro card like RTX 6000 Ada or Mac Studio (48GB+).</p>
+                    <a href="https://amzn.to/3X9P4D7" target="_blank" class="affiliate-link">View RTX 6000 Ada →</a>
+                </div>
+                ${getCloudOptions()}
+            `;
+        }
+        else if (totalRequiredVRAM > 24) {
+            recommendation += `
+                <div class="gpu-card" style="border-left: 4px solid #ff9900;">
+                    <h4>Recommended: RTX 5090 (32GB)</h4>
+                    <p>✅ <strong>Target Met:</strong> This new card covers your ${totalRequiredVRAM.toFixed(2)} GB requirement perfectly.</p>
+                    <a href="https://amzn.to/4893CYA" target="_blank" class="affiliate-link">Check Availability →</a>
+                </div>
+                ${getCloudOptions()}
+            `;
+        }
+        else if (totalRequiredVRAM > 16) {
+            recommendation += `
+                <div class="gpu-card" style="border-left: 4px solid #ff9900;">
+                    <h4>Recommended: RTX 3090 / 4090 (24GB)</h4>
+                    <p>Best value for high-end local LLMs.</p>
+                    <a href="https://amzn.to/3Kh5DtQ" target="_blank" class="affiliate-link">View RTX 4090 →</a>
+                </div>
+                ${getCloudOptions()}
+            `;
+        }
+        else if (totalRequiredVRAM > 12) {
+            recommendation += `
+                <div class="gpu-card" style="border-left: 4px solid #ff9900;">
+                    <h4>Recommended: RTX 4060 Ti (16GB)</h4>
+                    <p>Important: Make sure to get the 16GB version, not 8GB.</p>
+                    <a href="https://amzn.to/4pngXmZ" target="_blank" class="affiliate-link">View 16GB Cards →</a>
+                </div>
+                ${getCloudOptions()}
+            `;
+        }
+        else {
+            recommendation += `
+                <div class="gpu-card" style="border-left: 4px solid #48bb78;">
+                    <h4>Recommended: RTX 3060 (12GB)</h4>
+                    <p>The budget king for local AI.</p>
+                    <a href="https://amzn.to/4a7Tjqb" target="_blank" class="affiliate-link">View RTX 3060 →</a>
+                </div>
+                ${getCloudOptions()}
+            `;
+        }
+
+        recommendation += `</div>`;
+        return recommendation;
+    }
+    </script>
+</body>
+</html>
